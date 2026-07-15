@@ -1,0 +1,28 @@
+# Local checkout of the upstream reference project
+/sources/
+
+# Rust build output
+/target/
+**/*.rs.bk
+
+# Local environment and logs
+.env
+.env.*
+!.env.example
+*.log
+
+# Editors and IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Desktop.ini

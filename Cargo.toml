@@ -1,0 +1,16 @@
+[package]
+name = "gpui-markdown-editor-demo"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+gpui.workspace = true
+gpui-markdown-editor = { path = "crates/gpui-markdown-editor" }
+
+[workspace]
+members = ["crates/gpui-markdown-editor"]
+resolver = "2"
+
+[workspace.dependencies]
+gpui = { version = "0.2.2", features = ["runtime_shaders"] }
