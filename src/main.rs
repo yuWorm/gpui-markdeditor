@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use gpui::*;
 use gpui_markdown_editor::{
     MarkdownEditor, MarkdownEditorEvent, MarkdownEditorMode, MarkdownEditorOptions,
-    default_key_bindings,
+    MarkdownEditorTheme, default_key_bindings,
 };
 
 const SAMPLE: &str = r#"# GPUI Markdown Editor
@@ -13,7 +15,7 @@ This editor is a **standalone GPUI component** extracted from Velotype.
 - Undo / redo and source-stable mode switching
 
 > [!NOTE]
-> Use the buttons above or `Ctrl/Cmd+Tab` to switch modes.
+> Use the toolbar or `Ctrl/Cmd+Tab` to switch modes. Theme changes are instance-local.
 
 | API | Purpose |
 | --- | --- |
@@ -28,9 +30,16 @@ let editor = cx.new(|cx| {
 ```
 "#;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DemoTheme {
+    Dark,
+    Light,
+}
+
 struct Demo {
     editor: Entity<MarkdownEditor>,
     revision: u64,
+    theme: DemoTheme,
 }
 
 impl Demo {
@@ -40,6 +49,7 @@ impl Demo {
         Self {
             editor,
             revision: 0,
+            theme: DemoTheme::Dark,
         }
     }
 
@@ -67,15 +77,31 @@ impl Demo {
         });
     }
 
-    fn mode_button(
+    fn set_dark_theme(&mut self, _: &ClickEvent, _window: &mut Window, cx: &mut Context<Self>) {
+        self.editor.update(cx, |editor, cx| {
+            editor.set_theme(Arc::new(MarkdownEditorTheme::default_theme()), cx)
+        });
+        self.theme = DemoTheme::Dark;
+        cx.notify();
+    }
+
+    fn set_light_theme(&mut self, _: &ClickEvent, _window: &mut Window, cx: &mut Context<Self>) {
+        self.editor.update(cx, |editor, cx| {
+            editor.set_theme(Arc::new(MarkdownEditorTheme::light_theme()), cx)
+        });
+        self.theme = DemoTheme::Light;
+        cx.notify();
+    }
+
+    fn toolbar_button(
         &self,
         id: &'static str,
         label: &'static str,
-        mode: MarkdownEditorMode,
         active: bool,
+        on_click: fn(&mut Self, &ClickEvent, &mut Window, &mut Context<Self>),
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let button = div()
+        div()
             .id(id)
             .px(px(12.0))
             .py(px(6.0))
@@ -93,13 +119,9 @@ impl Demo {
             })
             .hover(|style| style.bg(rgba(0x3b465cff)))
             .cursor_pointer()
-            .child(label);
-
-        match mode {
-            MarkdownEditorMode::Rendered => button.on_click(cx.listener(Self::set_rendered)),
-            MarkdownEditorMode::Source => button.on_click(cx.listener(Self::set_source)),
-        }
-        .into_any_element()
+            .child(label)
+            .on_click(cx.listener(on_click))
+            .into_any_element()
     }
 }
 
@@ -126,18 +148,39 @@ impl Render for Demo {
                             .flex()
                             .items_center()
                             .gap(px(8.0))
-                            .child(self.mode_button(
+                            .child(self.toolbar_button(
                                 "rendered-mode",
                                 "Rendered",
-                                MarkdownEditorMode::Rendered,
                                 mode == MarkdownEditorMode::Rendered,
+                                Self::set_rendered,
                                 cx,
                             ))
-                            .child(self.mode_button(
+                            .child(self.toolbar_button(
                                 "source-mode",
                                 "Source",
-                                MarkdownEditorMode::Source,
                                 mode == MarkdownEditorMode::Source,
+                                Self::set_source,
+                                cx,
+                            ))
+                            .child(
+                                div()
+                                    .w(px(1.0))
+                                    .h(px(24.0))
+                                    .mx(px(4.0))
+                                    .bg(rgba(0x3a4558ff)),
+                            )
+                            .child(self.toolbar_button(
+                                "dark-theme",
+                                "Dark",
+                                self.theme == DemoTheme::Dark,
+                                Self::set_dark_theme,
+                                cx,
+                            ))
+                            .child(self.toolbar_button(
+                                "light-theme",
+                                "Light",
+                                self.theme == DemoTheme::Light,
+                                Self::set_light_theme,
                                 cx,
                             )),
                     )

@@ -8,6 +8,7 @@ mod environment;
 mod host;
 mod strings;
 mod theme;
+mod theme_config;
 
 pub use actions::*;
 pub use api::*;
@@ -17,4 +18,7 @@ pub use host::{ImagePasteHandler, ImageTarget, InsertOriginalImagePath, PastedIm
 pub use strings::I18nStrings as MarkdownEditorStrings;
 pub use theme::{
     Placeholders, Theme as MarkdownEditorTheme, ThemeColors, ThemeDimensions, ThemeTypography,
+};
+pub use theme_config::{
+    MarkdownEditorBuiltinTheme, MarkdownEditorThemePack, MarkdownEditorThemePatch,
 };

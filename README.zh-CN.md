@@ -233,6 +233,68 @@ let options = MarkdownEditorOptions {
 
 运行时可使用 `set_environment` 替换配置。环境数据属于单个编辑器实例，组件不会读取 Velotype 应用全局状态。
 
+## 主题
+
+主题 Token 由组件定义和消费；主题选择、存储和菜单由宿主负责。主题是不可变且实例隔离的，因此不同编辑器 Entity 可以同时使用不同主题。
+
+在单个编辑器中切换内置主题：
+
+```rust
+use std::sync::Arc;
+use gpui_markdown_editor::MarkdownEditorTheme;
+
+self.editor.update(cx, |editor, cx| {
+    editor.set_theme(Arc::new(MarkdownEditorTheme::light_theme()), cx);
+});
+```
+
+`set_theme` 只更新表现层，不会改变 Markdown、revision、选区、编辑模式或撤销/重做历史。
+
+### 兼容 Velotype 的主题包
+
+`MarkdownEditorThemePack` 支持原 Velotype 主题包外层结构，包括局部 Token 覆盖和 `base_theme_id` 继承：
+
+```jsonc
+{
+  "name": "Ocean Light",
+  "creator": "Example",
+  "base_theme_id": "velotype-light",
+  "theme": {
+    "dimensions": {
+      "editor_padding": 24.0
+    }
+  }
+}
+```
+
+由宿主读取 JSON 或 JSONC，组件负责将其一次性解析为完整运行时 Token：
+
+```rust
+use std::sync::Arc;
+use gpui_markdown_editor::MarkdownEditorThemePack;
+
+let source = std::fs::read_to_string(theme_path)?;
+let pack = MarkdownEditorThemePack::from_jsonc(&source)?;
+let theme = Arc::new(pack.resolve()?);
+
+self.editor.update(cx, |editor, cx| {
+    editor.set_theme(theme, cx);
+});
+```
+
+缺失值、`null` 和空字符串会继承 `velotype` 或 `velotype-light`。解析编辑器主题时会忽略组件不认识的应用外壳 Token。如果宿主已经持有 `.json` 或 `.jsonc` 文件路径，可以直接使用 `from_file`。
+
+如果只需要应用一组 Token Patch，不需要主题包元数据：
+
+```rust
+use gpui_markdown_editor::{MarkdownEditorTheme, MarkdownEditorThemePatch};
+
+let patch = MarkdownEditorThemePatch::from_jsonc(patch_source)?;
+let theme = patch.apply_to(&MarkdownEditorTheme::light_theme())?;
+```
+
+主题文件保存位置和当前主题 ID 的持久化由宿主决定。组件不注册全局主题，也不会读取 Velotype 配置目录。
+
 ## 图片粘贴策略
 
 默认情况下，本地图片路径会直接写入 Markdown；剪贴板中的编码图片字节则要求宿主提供 `ImagePasteHandler`：

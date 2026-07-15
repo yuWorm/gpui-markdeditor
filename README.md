@@ -233,6 +233,68 @@ let options = MarkdownEditorOptions {
 
 Use `set_environment` to replace these settings at runtime. Environment data is stored per editor instance; the component does not read Velotype application globals.
 
+## Themes
+
+Theme tokens are owned by the component, while theme selection, storage, and menus remain host responsibilities. Themes are immutable and instance-local, so different editor entities can use different themes.
+
+Switch one editor between the built-in themes:
+
+```rust
+use std::sync::Arc;
+use gpui_markdown_editor::MarkdownEditorTheme;
+
+self.editor.update(cx, |editor, cx| {
+    editor.set_theme(Arc::new(MarkdownEditorTheme::light_theme()), cx);
+});
+```
+
+`set_theme` updates presentation only. It does not change Markdown, revision, selection, mode, or undo/redo history.
+
+### Velotype-compatible theme packs
+
+`MarkdownEditorThemePack` accepts the original Velotype theme-pack envelope, including partial token overrides and `base_theme_id` inheritance:
+
+```jsonc
+{
+  "name": "Ocean Light",
+  "creator": "Example",
+  "base_theme_id": "velotype-light",
+  "theme": {
+    "dimensions": {
+      "editor_padding": 24.0
+    }
+  }
+}
+```
+
+Load JSON or JSONC supplied by the host and resolve it once into complete runtime tokens:
+
+```rust
+use std::sync::Arc;
+use gpui_markdown_editor::MarkdownEditorThemePack;
+
+let source = std::fs::read_to_string(theme_path)?;
+let pack = MarkdownEditorThemePack::from_jsonc(&source)?;
+let theme = Arc::new(pack.resolve()?);
+
+self.editor.update(cx, |editor, cx| {
+    editor.set_theme(theme, cx);
+});
+```
+
+Missing, `null`, and empty-string values inherit from `velotype` or `velotype-light`. Unknown application-shell tokens are ignored when resolving the editor theme. Use `from_file` when the host already has a `.json` or `.jsonc` path.
+
+For a token patch without theme-pack metadata:
+
+```rust
+use gpui_markdown_editor::{MarkdownEditorTheme, MarkdownEditorThemePatch};
+
+let patch = MarkdownEditorThemePatch::from_jsonc(patch_source)?;
+let theme = patch.apply_to(&MarkdownEditorTheme::light_theme())?;
+```
+
+The host decides where theme files live and how the selected theme ID is persisted. The component performs no global registration and does not read Velotype configuration directories.
+
 ## Image paste policy
 
 Local image paths are inserted directly by default. Encoded clipboard image bytes require the host to provide an implementation of `ImagePasteHandler`:

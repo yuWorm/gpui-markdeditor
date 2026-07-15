@@ -8,6 +8,7 @@ use gpui::*;
 use super::*;
 use crate::api::{LinkRequest, MarkdownEditorEvent, MarkdownEditorMode, SourceSelection};
 use crate::environment::MarkdownEditorEnvironment;
+use crate::theme::Theme;
 
 impl Editor {
     pub(super) fn scrollbar_geometry(
@@ -258,6 +259,25 @@ impl Editor {
         self.apply_selection_snapshot_in_current_mode(&snapshot, cx);
         self.last_selection_snapshot = snapshot;
         cx.emit(MarkdownEditorEvent::SelectionChanged(selection));
+        cx.notify();
+    }
+
+    /// Returns the immutable theme currently used by this editor instance.
+    pub fn theme(&self) -> Arc<Theme> {
+        self.environment.theme.clone()
+    }
+
+    /// Replaces only this editor instance's presentation tokens.
+    ///
+    /// Theme changes do not mutate Markdown, selection, revision, or history.
+    pub fn set_theme(&mut self, theme: Arc<Theme>, cx: &mut Context<Self>) {
+        if Arc::ptr_eq(&self.environment.theme, &theme) {
+            return;
+        }
+        let mut environment = (*self.environment).clone();
+        environment.theme = theme;
+        self.environment = Arc::new(environment);
+        self.sync_all_block_environments(cx);
         cx.notify();
     }
 
