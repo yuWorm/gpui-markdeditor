@@ -129,3 +129,31 @@ async fn set_theme_changes_only_presentation_state(cx: &mut TestAppContext) {
         );
     });
 }
+
+/// Velotype issue #106: with row culling, the rows after a long paragraph got a
+/// width of 0, and their text went out of view.
+#[test]
+fn rows_after_a_long_paragraph_keep_their_width() {
+    let long = "The leak is inside the editor itself, not in the agent. ".repeat(4);
+    let markdown = format!("# Title\n\n{long}\n\nSecond.\n\nThird.");
+    let mut cx = TestAppContext::single();
+    let (editor, cx) = cx.add_window_view(move |_window, cx| {
+        Editor::new(markdown.clone(), MarkdownEditorOptions::default(), cx)
+    });
+    cx.update(|window, cx| window.draw(cx).clear());
+    cx.run_until_parked();
+    editor.read_with(cx, |editor, cx| {
+        let widths: Vec<f32> = editor
+            .document
+            .visible_blocks()
+            .iter()
+            .map(|visible| {
+                visible.entity.read_with(cx, |block, _| {
+                    block.last_bounds.map_or(0.0, |bounds| f32::from(bounds.size.width))
+                })
+            })
+            .collect();
+        assert_eq!(widths.len(), 4);
+        assert!(widths.iter().all(|width| *width > 100.0), "{widths:?}");
+    });
+}

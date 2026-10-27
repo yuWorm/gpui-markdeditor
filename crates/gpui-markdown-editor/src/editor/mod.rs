@@ -53,7 +53,11 @@ pub struct Editor {
     last_scroll_viewport_size: Option<Size<Pixels>>,
     prev_visible_block_ids: Vec<EntityId>,
     row_stride_cache: HashMap<EntityId, f32>,
-    prev_render_window: Option<(usize, usize)>,
+    /// Content column the cached footprints were measured at. Rows rewrap when it
+    /// changes, so entries from another width are discarded rather than reused.
+    row_stride_width: Option<f32>,
+    /// Where last frame's run sat among the scroll container's children.
+    prev_mounted_run: Option<MountedRun>,
     context_menu: Option<ContextMenuState>,
     table_insert_dialog: Option<TableInsertDialogState>,
     context_menu_submenu_close_task: Option<Task<()>>,
@@ -102,12 +106,35 @@ struct ScrollbarGeometry {
     max_scroll_y: f32,
 }
 
+/// Windowing result: the run of rows to mount, plus the spacer heights standing
+/// in for the culled rows. `top_h` is the spacer directly above the run and
+/// `bottom_h` the one closing out the document.
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct RenderWindow {
     run_start: usize,
     run_end: usize,
     top_h: f32,
     bottom_h: f32,
+    focus_island: Option<FocusIsland>,
+}
+
+/// Where a frame's mounted run sat among the scroll container's children, so the
+/// next frame can read its recorded bounds back by index. `child_count` is what
+/// makes that mapping checkable rather than assumed.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct MountedRun {
+    row_start: usize,
+    row_end: usize,
+    child_base: usize,
+    child_count: usize,
+}
+
+/// Focused row mounted on its own, away from the run. Its position relative to
+/// the run follows from `row`, and `lead_h` is the spacer directly above it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct FocusIsland {
+    row: usize,
+    lead_h: f32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -253,7 +280,8 @@ impl Editor {
             last_scroll_viewport_size: None,
             prev_visible_block_ids: Vec::new(),
             row_stride_cache: HashMap::new(),
-            prev_render_window: None,
+            row_stride_width: None,
+            prev_mounted_run: None,
             context_menu: None,
             table_insert_dialog: None,
             context_menu_submenu_close_task: None,
